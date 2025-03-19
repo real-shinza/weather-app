@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
 
 void main() {
   runApp(const MyApp());
@@ -14,6 +17,7 @@ class MyApp extends StatelessWidget {
       title: 'Weather App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        textTheme: GoogleFonts.notoSansJpTextTheme(),
       ),
       home: const HomePage(),
     );
@@ -143,19 +147,55 @@ class HomePageState extends State<HomePage> {
   }
 }
 
-class WeatherPage extends StatelessWidget {
+class WeatherPage extends StatefulWidget {
   final String id;
   final String name;
   const WeatherPage({super.key, required this.id, required this.name});
 
   @override
+  WeatherPageState createState() => WeatherPageState();
+}
+
+class WeatherPageState extends State<WeatherPage> {
+  String weatherOverview = '';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchWeatherOverview();
+  }
+
+  Future<void> fetchWeatherOverview() async {
+    final url = Uri.parse('https://www.jma.go.jp/bosai/forecast/data/overview_forecast/${widget.id}.json');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final utf8DecodedBody = utf8.decode(response.bodyBytes); // 文字化け対策
+        final data = json.decode(utf8DecodedBody);
+        setState(() {
+          weatherOverview = data['text']; // 天気概況を取得
+        });
+      } else {
+        setState(() {
+          weatherOverview = '天気情報の取得に失敗しました';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        weatherOverview = 'エラーが発生しました: $e';
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('$nameの天気')),
+      appBar: AppBar(title: Text('${widget.name}の天気')),
       body: Center(
         child: Text(
-          'Weather details for $name will be displayed here.',
-          style: const TextStyle(fontSize: 20),
+          weatherOverview,
+          style: const TextStyle(fontSize: 15),
         ),
       ),
     );
